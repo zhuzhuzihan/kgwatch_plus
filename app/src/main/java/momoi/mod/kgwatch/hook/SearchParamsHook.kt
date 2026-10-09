@@ -23,7 +23,7 @@ import momoi.mod.kgwatch.Settings
  */
 @Mixin
 class SearchParamsHook(
-    params: java.util.Map<Any?, Any?>,
+    params: MutableMap<Any?, Any?>,
     callback: c.a.a.a.a.b.n.m
 ) : c.a.a.a.a.b.n.n(params, callback) {
 
