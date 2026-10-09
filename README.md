@@ -8,14 +8,15 @@
 - Hook 写法见 [docs/ApkMixin.md](docs/ApkMixin.md)
 - 通用插件说明见 [ApkMixin-generic README](ApkMixin/README.md)（如存在）
 
-当前版本：**1.2（搜索解锁 v2，签名前生效）**
+当前版本：**1.3（搜索解锁 v3：参数重签 + 结果黑名单门）**
 
 ## 功能
 
 - **设置 › 解锁搜索限制** —— 在系统设置页末尾追加一个 Mod 开关（即时生效，无需重启）：
-  - 搜索 `privilegefilter` 强制为 0（关闭服务端按版权裁剪结果）
-  - 搜索 `pagesize` 10 → 30（与手机端同量级结果数）
-  - 实现位置：`SearchUnlockHook`（`@StaticHook` 替换签名器输入 `c/a/a/a/a/c/e/b.p`，在**签名计算之前**改参数 Map，签名自动覆盖新值——1.1 的 `SearchParamsHook` 改在签名后的序列化串上，导致 signature 不匹配、服务端拒绝全部请求，已移除）；开关行由 `SettingFragmentHook` 注入、`UnlockCheckedListener` 为具名监听器（避开 Hook 内匿名类陷阱）、开关状态存 `Settings`（SharedPreferences `kgwatch`，默认关）
+  - `SearchUnlockHook`：`@StaticHook` 替换签名器输入 `c/a/a/a/a/c/e/b.p`，在**签名计算之前**改参数 Map（`privilegefilter→0`、`pagesize 10→30`），签名自动覆盖新值。1.1 版改在签名后的序列化串上导致 signature 不匹配、全部请求被拒，已引以为戒。
+  - `SearchSongGateHook`：`@StaticHook` 替换结果黑名单门 `c/a/a/a/a/f/e/c/b.R(KGSong)`（搜索回包解析器逐首调用，true=丢弃该歌）。手表用**远程配置下发的黑名单**（"歌手@歌名"精确对 / 歌名 contains / 正则，O0/M0/N0 三张表）在本地删歌——服务端实际返回了全部结果（探针实锤：手表同款参数直连返回"恋爱循环"480 条）。开启开关后此门直接放行。
+  - 客户端敏感词预检（`res/-e` 711 条精确词 + `res/yW` 237 条子串/正则词）经实测**不改写请求也不拦"恋爱循环"这类词**，暂不处理。
+  - 开关行由 `SettingFragmentHook` 注入、`UnlockCheckedListener` 为具名监听器（避开 Hook 内匿名类陷阱）、开关状态存 `Settings`（SharedPreferences `kgwatch`，默认关）
 
 ## 构建
 

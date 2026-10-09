@@ -24,6 +24,21 @@ import java.util.Map
  * through byte-identical):
  *   - privilegefilter -> "0"  (no server-side privilege trim)
  *   - pagesize        -> "30" (watch hardcodes 10; phone sends 30)
+ *   - filter keeps its original value — server accepts 0..N identically
+ *     (verified by direct probe); the sensitive-word precheck never rewrites
+ *     filter/privilegefilter, it only short-circuits to an empty result page.
+ *     With the precheck bypassed the original value is harmless either way.
+ *   - keyword: also add a raw (unfiltered) variant — see below.
+ *
+ * Keyword re-injection: the watch precheck (b/n/r/b wordlists in res/-e,
+ * res/yW) can flag a keyword BEFORE the map reaches here and swap the
+ * request to a blocked/empty variant (b/n/p signal). That precheck does not
+ * touch this map's keyword, so nothing to undo here — the empty result for
+ * keywords like 恋爱循环 comes from the RESPONSE side: KGSong fields are
+ * FileName(t)/OriSongName(s1)/Suffix(l)/SingerName(q), and the UI match
+ * (b.f.e.c.b.R) compares the keyword against singer-name prefix and
+ * name-contains on those; a match failure drops the row client-side.
+ * The keyword itself is left untouched by this hook.
  *
  * ApkMixin mechanics: the original p() gets renamed (p_0) at merge time and
  * the b.p(map) call inside this body is rewritten to it, so the original
