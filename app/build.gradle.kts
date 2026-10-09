@@ -1,9 +1,12 @@
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
+import org.objectweb.asm.AnnotationVisitor
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.FieldVisitor
+import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 
 buildscript {
@@ -20,11 +23,16 @@ plugins {
 }
 
 // The stub jar (app/libs/source.jar) is compile-only and never ships in the APK.
-// Some stub classes carry BOTH an InnerClasses (member) attribute and an EnclosingMethod
-// (local) attribute — a combination D8/R8 rejects ("a member class cannot also be a
-// non-member local class"). We compile against a patched copy with EnclosingMethod
-// stripped — pure member classes that dex cleanly, with no runtime effect
-// (real classes come from the patched target APK).
+// It is a plain dex2jar merge of the target, so target classes may be final /
+// package-private with private ctors — unusable as @Mixin supertypes. The build
+// compiles against a patched copy rewritten here with ASM (same opening rules as
+// ApkMixin-gen-dep's MainKt, applied at build time so a raw stub always works):
+//   - classes/inners/methods/fields: strip final, open visibility (public);
+//   - private <init> becomes public so @Mixin subclasses can call it;
+//   - EnclosingMethod attribute dropped (keep InnerClasses): D8 rejects a class
+//     carrying BOTH ("a member class cannot also be a non-member local class");
+//   - Kotlin Metadata + RestrictTo annotations dropped (they confuse D8).
+// Real classes come from the patched target APK at runtime — this only affects compilation.
 val patchedStubJar = layout.buildDirectory.file("patched-libs/source.jar")
 val patchStubJar = tasks.register("patchStubJar") {
     val srcJar = file("libs/source.jar")
@@ -33,18 +41,90 @@ val patchStubJar = tasks.register("patchStubJar") {
     doLast {
         val out = patchedStubJar.get().asFile
         out.parentFile.mkdirs()
+        val excluded = arrayOf("kotlin", "androidx")
         ZipFile(srcJar).use { zip ->
             ZipOutputStream(out.outputStream().buffered()).use { zos ->
                 val entries = zip.entries()
                 while (entries.hasMoreElements()) {
                     val e = entries.nextElement()
                     val bytes = zip.getInputStream(e).readBytes()
-                    val outBytes = if (e.name.endsWith(".class")) {
+                    val outBytes = if (e.name.endsWith(".class") && !excluded.any { e.name.startsWith(it) }) {
                         val cr = ClassReader(bytes)
                         val cw = ClassWriter(cr, 0)
                         cr.accept(object : ClassVisitor(Opcodes.ASM9, cw) {
                             // Drop the EnclosingMethod attribute (keep InnerClasses) → pure member class.
                             override fun visitOuterClass(owner: String?, name: String?, descriptor: String?) {}
+
+                            override fun visit(
+                                version: Int,
+                                access: Int,
+                                name: String?,
+                                signature: String?,
+                                superName: String?,
+                                interfaces: Array<out String>?
+                            ) {
+                                super.visit(
+                                    version,
+                                    (access and Opcodes.ACC_FINAL.inv()) or Opcodes.ACC_PUBLIC,
+                                    name, signature, superName, interfaces
+                                )
+                            }
+
+                            override fun visitInnerClass(
+                                name: String?,
+                                outerName: String?,
+                                innerName: String?,
+                                access: Int
+                            ) {
+                                var newInnerName = innerName
+                                var newOuterName = outerName
+                                if (innerName == null && outerName == null && name != null) {
+                                    newInnerName = name.substringAfterLast("/")
+                                    newOuterName = name.substringBeforeLast("/") + "/" + newInnerName.substringBefore("$")
+                                }
+                                super.visitInnerClass(
+                                    name, newOuterName, newInnerName,
+                                    access and Opcodes.ACC_PRIVATE.inv() and
+                                        Opcodes.ACC_FINAL.inv() or Opcodes.ACC_PUBLIC
+                                )
+                            }
+
+                            override fun visitMethod(
+                                access: Int,
+                                name: String?,
+                                descriptor: String?,
+                                signature: String?,
+                                exceptions: Array<out String>?
+                            ): MethodVisitor {
+                                var newAccess = access and Opcodes.ACC_FINAL.inv()
+                                if (name == "<init>" && (access and Opcodes.ACC_PRIVATE) != 0) {
+                                    newAccess = newAccess or Opcodes.ACC_PUBLIC and
+                                        Opcodes.ACC_PRIVATE.inv()
+                                }
+                                return super.visitMethod(newAccess, name, descriptor, signature, exceptions)
+                            }
+
+                            override fun visitField(
+                                access: Int,
+                                name: String?,
+                                descriptor: String?,
+                                signature: String?,
+                                value: Any?
+                            ): FieldVisitor {
+                                return super.visitField(
+                                    access and Opcodes.ACC_FINAL.inv(),
+                                    name, descriptor, signature, value
+                                )
+                            }
+
+                            val removed = arrayOf("Lkotlin/Metadata;", "Landroidx/annotation/RestrictTo;")
+                            override fun visitAnnotation(
+                                descriptor: String?,
+                                visible: Boolean
+                            ): AnnotationVisitor? {
+                                return if (removed.contains(descriptor)) null
+                                else super.visitAnnotation(descriptor, visible)
+                            }
                         }, 0)
                         cw.toByteArray()
                     } else {
@@ -92,7 +172,7 @@ android {
 dependencies {
     implementation(project(":ApkMixin-annotation"))
     compileOnly(libs.androidx.appcompat)
-    // Compile against the EnclosingMethod-stripped stub jar (see patchStubJar above).
+    // Compile against the build-time-opened stub jar (see patchStubJar above).
     compileOnly(files(patchStubJar))
     compileOnly(libs.androidx.fragment)
     compileOnly(libs.androidx.constraintlayout)

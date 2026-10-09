@@ -27,7 +27,7 @@ Authoritative reference: **`docs/ApkMixin.md`** (covers `@StaticHook`, `@Private
 
 ## Compile-only stubs
 
-- `app/libs/source.jar` holds stub classes of the target APK (compile-only; real classes come from the patched APK at runtime). The `patchStubJar` task in `app/build.gradle.kts` auto-generates a build-time copy with `EnclosingMethod` stripped so D8 accepts those stubs — hooks compile against that, not the raw jar.
+- `app/libs/source.jar` holds a plain dex2jar merge of the target APK (compile-only; real classes come from the patched APK at runtime). The `patchStubJar` task in `app/build.gradle.kts` rewrites a build-time copy with ASM — strip final, open visibility to public, publicize private ctors, drop EnclosingMethod/Kotlin-Metadata/RestrictTo — so D8 accepts the stubs and `@Mixin` classes can extend final target types. Hooks compile against that copy, not the raw jar.
 - `ApkMixin-gen-dep` is a standalone JVM tool (`Main.kt`, generic — no per-app coupling) that regenerates `app/libs/source.jar` from `raw.jar` (dex2jar-merged target); it is not part of the normal build. `raw.jar` itself is gitignored — regenerate with dex2jar after target upgrades.
 
 ## Understanding target internals
