@@ -6,21 +6,26 @@ import momoi.mod.kgwatch.Settings
 /**
  * Unlock search/copyright limits at the request-serialization layer.
  *
- * Target: com.kugou.common.network.protocol.AbstractRequestPackage — the
- * concrete base of every content RequestPackage (search, rank, tracker…).
- * getGetRequestParams() is defined here, so super.* calls the preserved
- * original and the override takes effect for all subclasses via dispatch.
+ * Target: c.a.a.a.a.b.n.n — the concrete song-search RequestPackage
+ * (public, instantiated per search; getGetRequestParams() is inherited from
+ * AbstractRequestPackage, so overriding here shadows it for search requests
+ * only while super.* still resolves to the original implementation).
  *
- * When [Settings.unlockSearch] is on, and only for requests that carry a
- * privilegefilter (i.e. song search — other APIs don't have the key, so they
- * pass through untouched apart from one contains() check):
+ * NOTE: the constructor below exists only to satisfy the Kotlin compiler
+ * (ApkMixin drops hook constructors at merge time; the target keeps its own).
+ * The class carries no fields and no <init> logic, per hook rules.
+ *
+ * When [Settings.unlockSearch] is on:
  *   - privilegefilter=<n> -> privilegefilter=0 (no server-side privilege trim)
  *   - pagesize=<n>        -> pagesize=30   (watch hardcodes 10; phone sends 30)
  *
  * Off by default: returns the original string verbatim.
  */
 @Mixin
-class SearchParamsHook : com.kugou.common.network.protocol.AbstractRequestPackage() {
+class SearchParamsHook(
+    params: java.util.Map<Any?, Any?>,
+    callback: c.a.a.a.a.b.n.m
+) : c.a.a.a.a.b.n.n(params, callback) {
 
     override fun getGetRequestParams(): String {
         val raw = super.getGetRequestParams()
