@@ -1,0 +1,26 @@
+*.iml
+.gradle
+.kotlin/
+/.idea/checkstyle-idea.xml
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+app/dist/mixin.apk
+app/dist/output-metadata.json
+app/decompiled/
+# Local RE scratch / tooling
+work/
+tools/
+# Raw analysis intermediates (kept locally, never committed)
+*.dex
+ApkMixin-gen-dep/raw.jar

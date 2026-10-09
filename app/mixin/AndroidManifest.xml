@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Plain-text manifest patch merged into the target APK's binary AndroidManifest at build time by
+  ApkMixin (ManifestMerger). New attributes override old; new nodes are added (matched by element
+  name + android:name). Edit freely to declare extra intent-filters / components / permissions.
+
+  Framework template for KG Watch Plus (target: com.kugou.android.watch.lite).
+  Currently minimal: notification permission (API 33+) + placeholder for future components.
+  Add your own <activity>/<service>/<receiver> nodes under <application> as needed.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Android 13+ runtime notification permission. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application>
+        <!-- Example: future debug activity (uncomment after creating the class).
+        <activity
+            android:name="momoi.mod.kgwatch.DebugActivity"
+            android:exported="false"
+            android:excludeFromRecents="true" />
+        -->
+    </application>
+</manifest>
