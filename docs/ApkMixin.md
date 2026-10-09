@@ -36,17 +36,21 @@ class MyHook : TargetClass() {
 
 ## 2. `@StaticHook` 替换静态方法
 
+**推荐：顶层同名函数**（qqmax `FixSavePicCrash.kt`、kgwatch `SearchUnlockHook.kt` 均此写法，实战验证）：
+
 ```kotlin
-@Mixin
-object ExampleStatic : TargetClass() {
-    @StaticHook
-    @JvmStatic
-    fun targetMethod_(...) { ... }
+// 文件：SearchUnlockHook.kt —— 同一文件的所有顶层 @StaticHook 必须指向同一个目标类
+@StaticHook(c.a.a.a.a.c.e.b::class)
+fun p(map: MutableMap<String, Any?>): String {   // 名+参+返回值与目标静态方法完全一致
+    // ...改 map...
+    return c.a.a.a.a.c.e.b.p(map)   // 调原实现：合并时此调用串被重写到改名后的 p_0
 }
 ```
 
-- 定义为 `object`；方法加 `@JvmStatic`；方法名后加**一个下划线**（避免与原方法重复声明导致编译失败）。
-- 顶层 `@StaticHook fun name(...)`（不用 `object` / `@JvmStatic` / 下划线）**也可行**（按 名 + 参 + 返回值 匹配，如 `FixSavePicCrash.kt`），但顶层函数的"源类"是文件的合成 `*Kt` 类——所以**同一文件里所有顶层 `@StaticHook` 必须指向同一个目标类**（见第 6 节）。
+- 匹配规则（`Smali.findMethod`）：按 **名字 + 参数列表** 精确匹配；`@StaticHook(value=…)` 只负责登记目标类。
+- **不存在下划线魔法**：旧文档写的「`object` + `@JvmStatic` + 方法名尾加 `_`」是**错的**——`p_` 按精确匹配永远命中不了 `p`，只会往目标类塞一个没人调的死方法（编译不报错、运行不崩溃、hook 静默失效）。
+- 目标类/方法 `final` 照常可用（不涉及继承）；参数类型按 stub 的平台类型写宽松形式（dex2jar 产物常见 `(Mutable)Map<String!, *>!` → Kotlin 写 `MutableMap<String, Any?>`，擦除后同为 `Ljava/util/Map;` 不影响匹配）。
+- 顶层函数的"源类"是文件的合成 `*Kt` 类——所以**同一文件里所有顶层 `@StaticHook` 必须指向同一个目标类**（见第 6 节）。
 
 ---
 
@@ -74,9 +78,18 @@ class MyHook : TargetClass() {
 | 注解 | 作用 |
 | --- | --- |
 | 普通 `override` | 替换普通虚方法 |
-| `@StaticHook` | 替换静态方法 |
+| `@StaticHook` | 替换静态方法（**顶层同名函数**写法，见第 2 节；`object+@JvmStatic+名_` 写法无效） |
 | `@PrivateCall` | 替换 private 实例方法 |
 | `@ConstructorHook` | 往 `<init>` 里拼接指令（见下） |
+
+---
+
+## 6.5 坑：Hook 点必须选在签名/校验之前
+
+若目标 App 对外发数据有**签名/完整性校验**（如酷狗 `signature = getSign(map2SortString(params))`），替换"最后序列化"之类**签名之后**才执行的方法毫无意义：改出的数据与签名不匹配，服务端整单拒绝。症状是**开关一开全挂**（如搜索全空），而非"没效果"。
+
+- 正确姿势：逆向找到**签名计算的前一步**（如 `map2SortString(params)` 的入口 `c/a/a/a/a/c/e/b.p`），在那里 `@StaticHook` 改 Map，签名随后自动覆盖新值。
+- 案例与排查过程见 `SearchUnlockHook.kt`（v1.1 的 `SearchParamsHook` 犯的就是这个错）。
 
 ---
 
