@@ -30,12 +30,12 @@ import java.util.Map
  * sort-query logic still runs on the (already mutated) map.
  */
 @StaticHook(c.a.a.a.a.c.e.b::class)
-fun p(map: Map<Any?, Any?>): String {
+fun p(map: MutableMap<String, Any?>): String {
     try {
-        if (Settings.unlockSearch && map != null && map.containsKey("privilegefilter")) {
-            map.put("privilegefilter", "0")
+        if (Settings.unlockSearch && map.containsKey("privilegefilter")) {
+            map["privilegefilter"] = "0"
             if (map.containsKey("pagesize")) {
-                map.put("pagesize", "30")
+                map["pagesize"] = "30"
             }
         }
     } catch (t: Throwable) {
