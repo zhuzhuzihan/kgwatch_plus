@@ -182,7 +182,7 @@ dependencies {
 }
 
 apkMixin {
-    versionName = "1.0"
+    versionName = "1.1"
     targetApk = "source.apk"
     // Generic ApkMixin fields: app-specific identity moved out of the plugin.
     applicationId = "com.kugou.android.watch.lite"

@@ -8,7 +8,14 @@
 - Hook 写法见 [docs/ApkMixin.md](docs/ApkMixin.md)
 - 通用插件说明见 [ApkMixin-generic README](ApkMixin/README.md)（如存在）
 
-当前版本：**1.0（框架）**
+当前版本：**1.1（搜索解锁）**
+
+## 功能
+
+- **设置 › 解锁搜索限制** —— 在系统设置页末尾追加一个 Mod 开关（即时生效，无需重启）：
+  - 搜索 `privilegefilter` 强制为 0（关闭服务端按版权裁剪结果）
+  - 搜索 `pagesize` 10 → 30（与手机端同量级结果数）
+  - 实现位置：`SearchParamsHook`（请求序列化层改写，只碰带 `privilegefilter` 的搜索请求，其他接口原样透传）、开关行由 `SettingFragmentHook` 注入、`UnlockCheckedListener` 为具名监听器（避开 Hook 内匿名类陷阱）、开关状态存 `Settings`（SharedPreferences `kgwatch`，默认关）
 
 ## 构建
 
