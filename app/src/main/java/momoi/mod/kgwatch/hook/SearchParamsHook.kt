@@ -30,4 +30,13 @@ class SearchParamsHook : c.a.a.a.a.f.f.a() {
         out = out.replace(Regex("pagesize=\\d+"), "pagesize=30")
         return out
     }
+
+    /**
+     * f/f/a declares this abstract (every concrete package overrides it, e.g.
+     * the search package). Delegate to super so runtime behavior is unchanged —
+     * this override exists only to satisfy the compiler.
+     */
+    override fun getUrlConfigKey(): com.kugou.common.config.ConfigKey {
+        return super.getUrlConfigKey()
+    }
 }
